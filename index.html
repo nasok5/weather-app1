@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Погода</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <h1 class="app__title">🌤️ Погода</h1>
+
+    <!-- Поиск -->
+    <form class="search" id="search-form">
+      <input
+        type="text"
+        class="search__input"
+        id="search-input"
+        placeholder="Введите город..."
+        autocomplete="off"
+      >
+      <button type="submit" class="search__btn">Найти</button>
+    </form>
+
+    <!-- Кнопка геолокации -->
+    <button type="button" class="geo-btn" id="geo-btn">
+      📍 Моё местоположение
+    </button>
+
+    <!-- Карточка погоды -->
+    <div class="card" id="card">
+      <div class="card__city" id="city">—</div>
+      <div class="card__icon" id="icon">🌍</div>
+      <div class="card__temp" id="temp">—</div>
+      <div class="card__desc" id="desc">Введите город</div>
+
+      <div class="card__details">
+        <div class="detail">
+          <span class="detail__label">Ощущается</span>
+          <span class="detail__value" id="feels">—</span>
+        </div>
+        <div class="detail">
+          <span class="detail__label">Влажность</span>
+          <span class="detail__value" id="humidity">—</span>
+        </div>
+        <div class="detail">
+          <span class="detail__label">Ветер</span>
+          <span class="detail__value" id="wind">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Прогноз на 5 дней -->
+    <div class="forecast" id="forecast">
+      <h2 class="forecast__title">Прогноз на 5 дней</h2>
+      <div class="forecast__list" id="forecast-list"></div>
+    </div>
+
+    <p class="hint" id="hint">Введите город или нажмите «Моё местоположение»</p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
