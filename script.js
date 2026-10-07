@@ -1,6 +1,7 @@
 // ============ Ссылки на элементы ============
 const form = document.getElementById('search-form');
 const input = document.getElementById('search-input');
+const geoBtn = document.getElementById('geo-btn');
 const hint = document.getElementById('hint');
 
 const cityEl = document.getElementById('city');
@@ -57,6 +58,26 @@ async function geocode(cityName) {
 
   const { latitude, longitude, name, country } = data.results[0];
   return { lat: latitude, lon: longitude, name, country };
+}
+
+// ============ Обратный геокодинг: координаты → название ============
+async function reverseGeocode(lat, lon) {
+  try {
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=ru`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Ошибка обратного геокодинга');
+
+    const data = await res.json();
+    const city = data.city || data.locality || data.principalSubdivision;
+    const country = data.countryName;
+
+    if (city && country) return `${city}, ${country}`;
+    if (city) return city;
+    return 'Моё местоположение';
+  } catch (err) {
+    console.warn('Обратный геокодинг недоступен:', err);
+    return 'Моё местоположение';
+  }
 }
 
 // ============ Прогноз: координаты → погода ============
@@ -118,6 +139,14 @@ function renderForecast(daily) {
   });
 }
 
+// ============ Общая функция загрузки по координатам ============
+async function loadByCoords(lat, lon, cityName) {
+  const { current, daily } = await fetchWeather(lat, lon);
+
+  renderWeather({ cityName, current });
+  renderForecast(daily);
+}
+
 // ============ Обработка формы ============
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -132,24 +161,66 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const { lat, lon, name, country } = await geocode(query);
-    const { current, daily } = await fetchWeather(lat, lon);
-
-    renderWeather({
-      cityName: country ? `${name}, ${country}` : name,
-      current,
-    });
-    renderForecast(daily);
+    await loadByCoords(lat, lon, country ? `${name}, ${country}` : name);
 
     hint.textContent = '✅ Данные обновлены';
   } catch (err) {
-    console.error('Подробности:', err);
-
-    if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-      hint.textContent = '🌐 Нет связи с API. Проверьте интернет или VPN.';
-    } else if (err.message === 'Город не найден') {
-      hint.textContent = '🤷 Город не найден. Попробуйте другое название.';
-    } else {
-      hint.textContent = `❌ Ошибка: ${err.message}`;
-    }
+    handleError(err);
   }
 });
+
+// ============ Обработка геолокации ============
+geoBtn.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    hint.textContent = '❌ Геолокация не поддерживается браузером';
+    return;
+  }
+
+  hint.textContent = '📡 Определяем местоположение...';
+  geoBtn.disabled = true;
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords;
+
+      try {
+        const cityName = await reverseGeocode(latitude, longitude);
+        await loadByCoords(latitude, longitude, cityName);
+        hint.textContent = '✅ Показана погода для вашего местоположения';
+      } catch (err) {
+        handleError(err);
+      } finally {
+        geoBtn.disabled = false;
+      }
+    },
+    (error) => {
+      geoBtn.disabled = false;
+
+      // Расшифровка кодов ошибок геолокации
+      const messages = {
+        1: '🚫 Вы запретили доступ к геолокации',
+        2: '📡 Не удалось определить местоположение',
+        3: '⏱️ Превышено время ожидания',
+      };
+      hint.textContent = messages[error.code] || '❌ Ошибка геолокации';
+    },
+    {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 60000, // кешируем позицию на 1 минуту
+    }
+  );
+});
+
+// ============ Единая обработка ошибок ============
+function handleError(err) {
+  console.error('Подробности:', err);
+
+  if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+    hint.textContent = '🌐 Нет связи с API. Проверьте интернет или VPN.';
+  } else if (err.message === 'Город не найден') {
+    hint.textContent = '🤷 Город не найден. Попробуйте другое название.';
+  } else {
+    hint.textContent = `❌ Ошибка: ${err.message}`;
+  }
+}
